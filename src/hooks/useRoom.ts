@@ -257,15 +257,22 @@ export function useRoom(roomCode?: string) {
   useEffect(() => {
     if (!room) return;
 
-    const presenceChannel = supabase.channel(`presence:${room.id}`);
+    console.log('Setting up presence channel for room:', room.id);
+    const presenceChannel = supabase.channel(`presence:${room.id}`, {
+      config: {
+        presence: { key: room.id },
+      },
+    });
 
     presenceChannel
       .on('presence', { event: 'sync' }, () => {
+        console.log('Presence sync event received');
         const state = presenceChannel.presenceState();
         const onlineViewers: Viewer[] = [];
         
         Object.values(state).forEach((presences: any) => {
           presences.forEach((presence: any) => {
+            console.log('Presence data:', presence);
             if (presence.id && presence.name) {
               onlineViewers.push({
                 id: presence.id,
@@ -276,7 +283,14 @@ export function useRoom(roomCode?: string) {
           });
         });
 
+        console.log('Updated viewers:', onlineViewers);
         setViewers(onlineViewers);
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        console.log('User joined:', key, newPresences);
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        console.log('User left:', key, leftPresences);
       })
       .subscribe();
 
@@ -289,10 +303,39 @@ export function useRoom(roomCode?: string) {
   const trackPresence = useCallback(async (userId: string, userName: string) => {
     if (!room) return;
 
-    const channel = supabase.channel(`presence:${room.id}`);
+    console.log('Tracking presence for:', userId, userName);
+    const channel = supabase.channel(`presence:${room.id}`, {
+      config: {
+        broadcast: { ack: false },
+        presence: { key: userId },
+      },
+    });
     
+    channel.on('presence', { event: 'sync' }, () => {
+      console.log('Presence sync received');
+      const state = channel.presenceState();
+      const onlineViewers: Viewer[] = [];
+      
+      Object.values(state).forEach((presences: any) => {
+        presences.forEach((presence: any) => {
+          console.log('Presence state:', presence);
+          if (presence.id && presence.name) {
+            onlineViewers.push({
+              id: presence.id,
+              name: presence.name,
+              online: true,
+            });
+          }
+        });
+      });
+
+      setViewers(onlineViewers);
+    });
+
     await channel.subscribe(async (status) => {
+      console.log('Channel subscribe status:', status);
       if (status === 'SUBSCRIBED') {
+        console.log('Tracking user:', userId, userName);
         await channel.track({
           id: userId,
           name: userName,

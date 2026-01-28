@@ -98,9 +98,21 @@ export function useRoom(roomCode?: string) {
       return null;
     }
 
-    setRoom(data as Room);
+    const roomData = data as Room;
+    setRoom(roomData);
+    
+    // Fetch initial join requests for this room
+    const { data: requestsData } = await supabase
+      .from('join_requests')
+      .select('*')
+      .eq('room_id', roomData.id);
+    
+    if (requestsData) {
+      setJoinRequests(requestsData as JoinRequest[]);
+    }
+    
     setLoading(false);
-    return data as Room;
+    return roomData;
   }, []);
 
   // Update room sharing state

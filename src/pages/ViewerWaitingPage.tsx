@@ -39,7 +39,7 @@ export default function ViewerWaitingPage() {
 
   // Watch for status changes in join requests
   useEffect(() => {
-    if (viewerId && joinRequests.length > 0) {
+    if (viewerId && joinRequests) {
       const myUpdatedRequest = joinRequests.find(r => r.viewer_id === viewerId);
       if (myUpdatedRequest) {
         setMyRequest(myUpdatedRequest);

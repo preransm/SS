@@ -46,19 +46,29 @@ export function useWebRTCPeer(
   const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   const setLocalStream = useCallback((stream: MediaStream | null) => {
+    console.log('Setting local stream:', stream ? `${stream.getTracks().length} tracks` : 'null');
     localStreamRef.current = stream;
     
-    // Add tracks to all existing peer connections
-    peerConnectionsRef.current.forEach((pc) => {
+    // Add or update tracks in all existing peer connections
+    peerConnectionsRef.current.forEach((pc, remotePeerId) => {
       if (stream) {
         stream.getTracks().forEach(track => {
           const senders = pc.getSenders();
           const existingSender = senders.find(s => s.track?.kind === track.kind);
           if (existingSender) {
+            console.log('Replacing track:', track.kind, 'for', remotePeerId);
             existingSender.replaceTrack(track);
           } else {
+            console.log('Adding track:', track.kind, 'for', remotePeerId);
             pc.addTrack(track, stream);
           }
+        });
+      } else {
+        // Remove all tracks
+        const senders = pc.getSenders();
+        senders.forEach(sender => {
+          console.log('Removing track:', sender.track?.kind, 'for', remotePeerId);
+          pc.removeTrack(sender);
         });
       }
     });
@@ -100,8 +110,12 @@ export function useWebRTCPeer(
     };
 
     pc.ontrack = (event) => {
-      console.log('Track received:', event.track.kind);
-      setRemoteStream(event.streams[0]);
+      console.log('Track received:', event.track.kind, 'from remote peer');
+      console.log('Streams:', event.streams);
+      if (event.streams && event.streams.length > 0) {
+        console.log('Setting remote stream with', event.streams[0].getTracks().length, 'tracks');
+        setRemoteStream(event.streams[0]);
+      }
     };
 
     pc.onicegatheringstatechange = () => {

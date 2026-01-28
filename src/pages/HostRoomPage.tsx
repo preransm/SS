@@ -88,13 +88,14 @@ export default function HostRoomPage() {
   useEffect(() => {
     const approvedViewers = joinRequests.filter(r => r.status === 'approved');
     approvedViewers.forEach((request) => {
-      // Only create offer if we haven't already for this viewer
-      if (!connectedViewers.has(request.viewer_id)) {
+      // Only create offer if we haven't already for this viewer AND we have a stream
+      if (!connectedViewers.has(request.viewer_id) && stream) {
+        console.log('Creating offer for viewer:', request.viewer_id);
         createOffer(request.viewer_id);
         setConnectedViewers(prev => new Set([...prev, request.viewer_id]));
       }
     });
-  }, [joinRequests, createOffer, connectedViewers]);
+  }, [joinRequests, createOffer, connectedViewers, stream]);
 
   const handleCopyCode = useCallback(async () => {
     if (roomCode) {

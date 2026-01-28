@@ -47,6 +47,7 @@ export default function HostRoomPage() {
 
   const [copied, setCopied] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'requests' | 'viewers' | 'chat'>('requests');
+  const [connectedViewers, setConnectedViewers] = useState<Set<string>>(new Set());
 
   // Verify host access
   useEffect(() => {
@@ -87,11 +88,13 @@ export default function HostRoomPage() {
   useEffect(() => {
     const approvedViewers = joinRequests.filter(r => r.status === 'approved');
     approvedViewers.forEach((request) => {
-      if (stream) {
+      // Only create offer if we haven't already for this viewer
+      if (!connectedViewers.has(request.viewer_id)) {
         createOffer(request.viewer_id);
+        setConnectedViewers(prev => new Set([...prev, request.viewer_id]));
       }
     });
-  }, [joinRequests, stream, createOffer]);
+  }, [joinRequests, createOffer, connectedViewers]);
 
   const handleCopyCode = useCallback(async () => {
     if (roomCode) {

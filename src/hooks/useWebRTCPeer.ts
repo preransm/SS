@@ -26,7 +26,7 @@ export interface UseWebRTCPeerReturn {
   remoteStream: MediaStream | null;
   createOffer: (viewerId: string) => Promise<void>;
   handleOffer: (offer: RTCSessionDescriptionInit, hostId: string) => Promise<void>;
-  handleAnswer: (answer: RTCSessionDescriptionInit) => void;
+  handleAnswer: (answer: RTCSessionDescriptionInit, viewerId: string) => void;
   handleIceCandidate: (candidate: RTCIceCandidateInit) => void;
   setLocalStream: (stream: MediaStream | null) => void;
   cleanup: () => void;
@@ -100,14 +100,23 @@ export function useWebRTCPeer(
     };
 
     pc.ontrack = (event) => {
+      console.log('Track received:', event.track.kind);
       setRemoteStream(event.streams[0]);
+    };
+
+    pc.onicegatheringstatechange = () => {
+      console.log('ICE gathering state:', pc.iceGatheringState);
     };
 
     // Add local stream tracks if available
     if (localStreamRef.current) {
+      console.log('Adding local tracks to peer connection');
       localStreamRef.current.getTracks().forEach(track => {
+        console.log('Adding track:', track.kind);
         pc.addTrack(track, localStreamRef.current!);
       });
+    } else {
+      console.log('No local stream available yet');
     }
 
     peerConnectionsRef.current.set(remotePeerId, pc);
@@ -175,17 +184,19 @@ export function useWebRTCPeer(
     }
   }, [createPeerConnection, peerId]);
 
-  const handleAnswer = useCallback((answer: RTCSessionDescriptionInit) => {
-    // Find the connection for this answer (usually from the first/only viewer as host)
-    peerConnectionsRef.current.forEach(async (pc) => {
-      if (pc.signalingState === 'have-local-offer') {
-        try {
-          await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        } catch (error) {
-          console.error('Error setting remote description:', error);
-        }
+  const handleAnswer = useCallback((answer: RTCSessionDescriptionInit, viewerId: string) => {
+    // Get the connection for this specific viewer
+    const pc = peerConnectionsRef.current.get(viewerId);
+    if (pc && pc.signalingState === 'have-local-offer') {
+      try {
+        pc.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('Answer set for viewer:', viewerId);
+      } catch (error) {
+        console.error('Error setting remote description:', error);
       }
-    });
+    } else {
+      console.warn('No matching connection for answer from viewer:', viewerId, 'state:', pc?.signalingState);
+    }
   }, []);
 
   const handleIceCandidate = useCallback((candidate: RTCIceCandidateInit) => {
@@ -229,12 +240,15 @@ export function useWebRTCPeer(
 
       switch (message.type) {
         case 'offer':
+          console.log('Received offer from:', message.from);
           handleOffer(message.payload, message.from);
           break;
         case 'answer':
-          handleAnswer(message.payload);
+          console.log('Received answer from:', message.from);
+          handleAnswer(message.payload, message.from);
           break;
         case 'ice-candidate':
+          console.log('Received ICE candidate from:', message.from);
           // Store candidate if we don't have a connection yet
           const pc = peerConnectionsRef.current.get(message.from);
           if (pc?.remoteDescription) {

@@ -68,7 +68,7 @@ export default function ViewerRoomPage() {
     }
   }, [room, roomCode, navigate]);
 
-  // Track viewer presence
+  // Track viewer presence as soon as they enter the room
   useEffect(() => {
     if (room && viewerId) {
       trackPresence(viewerId, viewerName);

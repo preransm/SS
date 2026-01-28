@@ -86,23 +86,17 @@ export default function HostRoomPage() {
   }, [shareState, room, updateSharingState]);
 
   // Create offers for newly approved viewers
+  // Always (re)create offers for all approved viewers whenever stream becomes available or changes
   useEffect(() => {
-    // Only create offers if screen share is active and stream is available
-    if (shareState !== 'active' || !stream) {
-      return;
-    }
+    if (shareState !== 'active' || !stream) return;
     const approvedViewers = joinRequests.filter(r => r.status === 'approved');
-    console.log('Approved viewers:', approvedViewers.length, 'Connected:', connectedViewers.size, 'Share state:', shareState, 'Stream:', !!stream);
-    
     approvedViewers.forEach((request) => {
-      // Create offer if we haven't already for this viewer
-      if (!connectedViewers.has(request.viewer_id)) {
-        console.log('Creating offer for viewer:', request.viewer_id);
-        createOffer(request.viewer_id);
-        setConnectedViewers(prev => new Set([...prev, request.viewer_id]));
-      }
+      // Always create a new offer for each approved viewer when stream changes
+      console.log('Creating offer for viewer:', request.viewer_id, '(resetting connection)');
+      createOffer(request.viewer_id);
+      setConnectedViewers(prev => new Set([...prev, request.viewer_id]));
     });
-  }, [joinRequests, createOffer, connectedViewers, shareState, stream]);
+  }, [stream, shareState, joinRequests, createOffer]);
 
   const handleCopyCode = useCallback(async () => {
     if (roomCode) {

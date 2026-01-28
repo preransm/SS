@@ -87,8 +87,12 @@ export default function HostRoomPage() {
 
   // Create offers for newly approved viewers
   useEffect(() => {
+    // Only create offers if screen share is active and stream is available
+    if (shareState !== 'active' || !stream) {
+      return;
+    }
     const approvedViewers = joinRequests.filter(r => r.status === 'approved');
-    console.log('Approved viewers:', approvedViewers.length, 'Connected:', connectedViewers.size);
+    console.log('Approved viewers:', approvedViewers.length, 'Connected:', connectedViewers.size, 'Share state:', shareState, 'Stream:', !!stream);
     
     approvedViewers.forEach((request) => {
       // Create offer if we haven't already for this viewer
@@ -98,7 +102,7 @@ export default function HostRoomPage() {
         setConnectedViewers(prev => new Set([...prev, request.viewer_id]));
       }
     });
-  }, [joinRequests, createOffer, connectedViewers]);
+  }, [joinRequests, createOffer, connectedViewers, shareState, stream]);
 
   const handleCopyCode = useCallback(async () => {
     if (roomCode) {

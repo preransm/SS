@@ -9,13 +9,21 @@ export default function ViewerWaitingPage() {
   const [myRequest, setMyRequest] = useState<JoinRequest | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const viewerName = sessionStorage.getItem(`name_${roomCode}`) || 'Viewer';
 
   // Fetch room on mount
   useEffect(() => {
     if (roomCode) {
-      fetchRoom(roomCode);
+      fetchRoom(roomCode).then((result) => {
+        if (!result) {
+          setError('Room not found or has ended.');
+        }
+      }).catch((err) => {
+        setError('Failed to fetch room: ' + err.message);
+        console.error('Failed to fetch room:', err);
+      });
     }
   }, [roomCode, fetchRoom]);
 
@@ -24,11 +32,19 @@ export default function ViewerWaitingPage() {
     const submitRequest = async () => {
       if (room && !myRequest && !isRequesting) {
         setIsRequesting(true);
-        const result = await requestJoin(viewerName);
-        if (result) {
-          setMyRequest(result.request);
-          setViewerId(result.viewerId);
-          sessionStorage.setItem(`viewer_${roomCode}`, result.viewerId);
+        try {
+          const result = await requestJoin(viewerName);
+          if (result) {
+            setMyRequest(result.request);
+            setViewerId(result.viewerId);
+            sessionStorage.setItem(`viewer_${roomCode}`, result.viewerId);
+          } else {
+            setError('Failed to submit join request.');
+            console.error('Failed to submit join request: result is null');
+          }
+        } catch (err: any) {
+          setError('Failed to submit join request: ' + err.message);
+          console.error('Failed to submit join request:', err);
         }
         setIsRequesting(false);
       }
@@ -76,6 +92,7 @@ export default function ViewerWaitingPage() {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
           <p className="text-muted-foreground">Loading...</p>
+          {error && <p className="text-destructive mt-2">{error}</p>}
         </div>
       </div>
     );
@@ -94,6 +111,7 @@ export default function ViewerWaitingPage() {
           <p className="text-muted-foreground mb-6">
             This room doesn't exist or has ended.
           </p>
+          {error && <p className="text-destructive mt-2">{error}</p>}
           <button
             onClick={() => navigate('/')}
             className="h-11 px-6 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"

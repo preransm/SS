@@ -1,73 +1,137 @@
-# Welcome to your Lovable project
 
-## Project info
+# Screen Share Collaboration App
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+A professional real-time screen sharing application where hosts can share their screen with approved viewers.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## Page 1: Homepage (/)
 
-**Use Lovable**
+**Welcome screen with browser compatibility check**
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- Clean hero section with app title "Screen Share Collaboration"
+- Tagline: "Share your screen securely with your team"
+- **"Create Room"** button - for hosts to start sharing
+- **"Join Room"** input field + button - for viewers to enter a room ID
+- Automatic browser compatibility check (navigator.mediaDevices.getDisplayMedia)
+- Unsupported browser message with recommendations if API unavailable
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## Page 2: Host Room (/room/:roomId/host)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+**The host's control center**
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Screen Sharing Section
+- Large video preview area showing the shared screen
+- Stream metadata display (resolution, display type: tab/window/screen)
+- **Start/Stop Sharing** button with clear visual states
+- **Pause/Resume** toggle for the stream
+- Quality indicator
 
-Follow these steps:
+### Control Panel Sidebar
+- **Room ID display** with copy-to-clipboard button
+- **Viewer Requests** - list of pending join requests with Accept/Reject buttons
+- **Active Viewers** - list showing who's currently watching
+- **Chat panel** - real-time text messages with all participants
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### State Handling
+- Permission requesting state (loading spinner)
+- Permission granted state (live preview)
+- User cancelled state (retry prompt)
+- Permission denied state (instructions to enable)
+- Stream ended detection (browser UI stop detected)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Page 3: Viewer Waiting Room (/room/:roomId/waiting)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+**Where viewers wait for host approval**
 
-**Edit a file directly in GitHub**
+- Animated waiting indicator
+- "Waiting for host to approve your request..."
+- Option to leave/cancel the request
+- Auto-redirect to viewer room when approved
+- Rejection notification if denied
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## Page 4: Viewer Room (/room/:roomId/viewer)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+**Where approved viewers watch the stream**
 
-## What technologies are used for this project?
+### Viewing Area
+- Full-width video display of the shared screen
+- Connection quality indicator
+- **Viewer controls**: Enter/exit fullscreen
 
-This project is built with:
+### Sidebar
+- **Viewer list** - see who else is watching
+- **Chat panel** - send and receive messages
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Edge Cases
+- "Host has paused sharing" overlay
+- "Host has stopped sharing" with return-to-home option
+- "Connection lost" with reconnection attempt
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Page 5: End Screen
 
-## Can I connect a custom domain to my Lovable project?
+**When a session ends**
 
-Yes, you can!
+- "Screen sharing has ended" message
+- Session summary (duration, number of viewers)
+- **"Start New Session"** button (for hosts)
+- **"Back to Home"** button
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+---
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Technical Implementation
+
+### Custom Hook: `useScreenShare`
+- Manages getDisplayMedia requests
+- Tracks stream state (idle, requesting, active, paused, stopped, error)
+- Handles track.onended events
+- Proper cleanup on unmount
+
+### Custom Hook: `useWebRTCPeer`
+- Creates and manages RTCPeerConnection
+- Handles ICE candidate exchange
+- Manages offer/answer negotiation
+
+### Backend (Lovable Cloud)
+- **Realtime channels** for WebRTC signaling
+- **Presence** for viewer list tracking
+- **Database** for room persistence and join requests
+- **Chat messages** via realtime broadcast
+
+### Reusable Components
+- Button (with loading, disabled states)
+- VideoPreview (for displaying streams)
+- StatusBadge (for connection states)
+- ChatMessage
+- ViewerCard
+
+---
+
+## User Flows
+
+### Host Flow
+1. Land on homepage → Click "Create Room"
+2. Redirected to Host Room with unique room ID
+3. Click "Start Sharing" → Browser permission dialog
+4. Select screen/window/tab → Live preview appears
+5. Share room ID with viewers
+6. Approve/reject viewer requests as they come in
+7. Chat with approved viewers
+8. Stop sharing when done → End screen
+
+### Viewer Flow
+1. Land on homepage → Enter room ID → Click "Join"
+2. Redirected to Waiting Room
+3. Wait for host approval
+4. Once approved → See live screen share
+5. Chat with host and other viewers
+6. When host stops → Redirected to End screen
+
